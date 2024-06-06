@@ -15,9 +15,11 @@ class BlackjackGame:
             self.deal_initial_cards()
             self.play_rounds()
             self.settle_bets()
+            self.remove_bankrupt_players()
             for player in self.players:
                 player.save()
-            if not self.ask_to_continue():
+            self.display_balances()
+            if not self.ask_to_continue() or not self.players:
                 break
 
     def collect_bets(self):
@@ -31,6 +33,10 @@ class BlackjackGame:
                     print(e)
 
     def deal_initial_cards(self):
+        for player in self.players:
+            player.clear_hand()
+        self.dealer.clear_hand()
+
         for _ in range(2):
             for player in self.players:
                 player.receive_card(self.deck.deal_card())
@@ -45,7 +51,7 @@ class BlackjackGame:
         print(f'Dealer\'s hand: {self.format_hand(self.dealer.hand)} {"[Hidden]" if initial else ""}')
 
     def format_hand(self, hand):
-        return ', '.join([str(card) for card in hand])
+        return ', '.join([self.deck.format_card(card) for card in hand])
 
     def play_rounds(self):
         for player in self.players:
@@ -67,26 +73,30 @@ class BlackjackGame:
         for player in self.players:
             player_value = player.calculate_hand_value()
             if player_value > 21:
-                print(f'{player.name} busted and loses ${player.bet}')
+                print(f'{player.name} busted')
+                player.balance -= player.bet
             elif dealer_value > 21 or player_value > dealer_value:
                 winnings = player.bet * 2
                 player.balance += winnings
-                print(f'{player.name} wins ${winnings}')
+                print(f'{player.name} win')
             elif player_value == dealer_value:
                 player.balance += player.bet
-                print(f'{player.name} pushes')
+                print(f'{player.name} push')
             else:
-                print(f'{player.name} loses ${player.bet}')
+                print(f'{player.name} lose')
+                player.balance -= player.bet
+            #print(f"{player.name}'s balance: ${player.balance}")
+    
+    def remove_bankrupt_players(self):
+        bankrupt_players = [player for player in self.players if player.balance <= 0]
+        for player in bankrupt_players:
+            print(f'{player.name} has run out of funds and is removed from the game.')
+            self.players.remove(player)
 
+    def display_balances(self):
+        for player in self.players:
+            print(f'{player.name}\'s balance: ${player.balance}')
+            
     def ask_to_continue(self):
         response = input('Do you want to play again? (yes/no): ').strip().lower()
         return response == 'yes'
-
-def main():
-    num_players = int(input('Enter number of players (1-4): '))
-    player_names = [input(f'Enter name for player {i+1}: ') for i in range(num_players)]
-    game = BlackjackGame(player_names)
-    game.start_game()
-
-if __name__ == "__main__":
-    main()
